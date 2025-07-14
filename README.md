@@ -193,4 +193,4 @@ CREATE TABLE products (
 
 ---
 
-**Create by Zozulia Oleh | Softserve Academy | 2025**
+**Created by Zozulia Oleh | Softserve Academy | 2025**

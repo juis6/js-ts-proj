@@ -1,30 +1,16 @@
 import sqlite3 from "sqlite3";
-import {
-  Product,
-  ProductCreateRequest,
-  ProductUpdateRequest,
-  ProductSearchQuery,
-  ProductStats,
-} from "./types";
+import { Product, ProductSearchQuery, ProductStats } from "./types";
 
 export class Database {
   private db: sqlite3.Database;
-  private isInitialized: boolean = false;
 
   constructor(dbPath: string = "./shop.db") {
-    this.db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error("Error opening database:", err);
-      } else {
-        console.log("Connected to SQLite database");
-      }
-    });
+    this.db = new sqlite3.Database(dbPath);
   }
 
-  // Ініціалізація таблиць з Promise
-  public initTables(): Promise<void> {
+  initTables(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const createProductsTable = `
+      const sql = `
         CREATE TABLE IF NOT EXISTS products (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
@@ -32,98 +18,70 @@ export class Database {
           description TEXT,
           category TEXT NOT NULL,
           stock INTEGER NOT NULL DEFAULT 0,
-          image_url TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `;
-
-      this.db.run(createProductsTable, (err) => {
-        if (err) {
-          console.error("Error creating products table:", err);
-          reject(err);
-        } else {
-          console.log("Products table ready");
-          this.isInitialized = true;
-          resolve();
-        }
+      this.db.run(sql, (err) => {
+        if (err) reject(err);
+        else resolve();
       });
     });
   }
 
-  // Перевірка ініціалізації
-  private async ensureInitialized(): Promise<void> {
-    if (!this.isInitialized) {
-      await this.initTables();
-    }
-  }
-
-  public async getAllProducts(): Promise<Product[]> {
-    await this.ensureInitialized();
+  getAllProducts(): Promise<Product[]> {
     return new Promise((resolve, reject) => {
       this.db.all(
         "SELECT * FROM products ORDER BY created_at DESC",
         (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows as Product[]);
-          }
+          if (err) reject(err);
+          else resolve(rows as Product[]);
         }
       );
     });
   }
 
-  public async getProductById(id: number): Promise<Product | null> {
-    await this.ensureInitialized();
+  getProductById(id: number): Promise<Product | null> {
     return new Promise((resolve, reject) => {
       this.db.get("SELECT * FROM products WHERE id = ?", [id], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve((row as Product) || null);
-        }
+        if (err) reject(err);
+        else resolve((row as Product) || null);
       });
     });
   }
 
-  public async createProduct(product: ProductCreateRequest): Promise<Product> {
-    await this.ensureInitialized();
+  createProduct(
+    product: Omit<Product, "id" | "created_at" | "updated_at">
+  ): Promise<Product> {
     return new Promise((resolve, reject) => {
-      const { name, price, description, category, stock, image_url } = product;
-      const query = `
-        INSERT INTO products (name, price, description, category, stock, image_url)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
+      const { name, price, description, category, stock } = product;
+      const sql =
+        "INSERT INTO products (name, price, description, category, stock) VALUES (?, ?, ?, ?, ?)";
 
       this.db.run(
-        query,
-        [name, price, description, category, stock, image_url],
+        sql,
+        [name, price, description, category, stock],
         function (err) {
-          if (err) {
-            reject(err);
-          } else {
-            const createdId = this.lastID;
+          if (err) reject(err);
+          else
             resolve({
-              id: createdId,
+              id: this.lastID,
               ...product,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
-          }
         }
       );
     });
   }
 
-  public async updateProduct(
+  updateProduct(
     id: number,
-    updates: Partial<ProductCreateRequest>
+    updates: Partial<Product>
   ): Promise<Product | null> {
-    await this.ensureInitialized();
     return new Promise((resolve, reject) => {
       const fields = Object.keys(updates).filter(
-        (key) => updates[key as keyof ProductCreateRequest] !== undefined
+        (key) => updates[key as keyof Product] !== undefined
       );
       if (fields.length === 0) {
         reject(new Error("No fields to update"));
@@ -131,44 +89,29 @@ export class Database {
       }
 
       const setClause = fields.map((field) => `${field} = ?`).join(", ");
-      const values = fields.map(
-        (field) => updates[field as keyof ProductCreateRequest]
-      );
+      const values = fields.map((field) => updates[field as keyof Product]);
       values.push(id);
 
-      const query = `
-        UPDATE products 
-        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `;
+      const sql = `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
 
-      this.db.run(query, values, function (err) {
-        if (err) {
-          reject(err);
-        } else if (this.changes === 0) {
-          resolve(null);
-        } else {
-          resolve({ id, ...updates } as Product);
-        }
+      this.db.run(sql, values, function (err) {
+        if (err) reject(err);
+        else if (this.changes === 0) resolve(null);
+        else resolve({ id, ...updates } as Product);
       });
     });
   }
 
-  public async deleteProduct(id: number): Promise<boolean> {
-    await this.ensureInitialized();
+  deleteProduct(id: number): Promise<boolean> {
     return new Promise((resolve, reject) => {
       this.db.run("DELETE FROM products WHERE id = ?", [id], function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(this.changes > 0);
-        }
+        if (err) reject(err);
+        else resolve(this.changes > 0);
       });
     });
   }
 
-  public async searchProducts(query: ProductSearchQuery): Promise<Product[]> {
-    await this.ensureInitialized();
+  searchProducts(query: ProductSearchQuery): Promise<Product[]> {
     return new Promise((resolve, reject) => {
       let sql = "SELECT * FROM products WHERE 1=1";
       const params: any[] = [];
@@ -201,30 +144,26 @@ export class Database {
       }
 
       this.db.all(sql, params, (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows as Product[]);
-        }
+        if (err) reject(err);
+        else resolve(rows as Product[]);
       });
     });
   }
 
-  public async getProductStats(): Promise<ProductStats> {
-    await this.ensureInitialized();
+  getProductStats(): Promise<ProductStats> {
     return new Promise((resolve, reject) => {
-      const queries = [
-        "SELECT COUNT(*) as totalProducts, SUM(price * stock) as totalValue, AVG(price) as averagePrice, SUM(stock) as totalStock FROM products",
-        "SELECT category, COUNT(*) as count FROM products GROUP BY category",
-      ];
+      const statsQuery =
+        "SELECT COUNT(*) as totalProducts, SUM(price * stock) as totalValue, AVG(price) as averagePrice, SUM(stock) as totalStock FROM products";
+      const categoriesQuery =
+        "SELECT category, COUNT(*) as count FROM products GROUP BY category";
 
-      this.db.get(queries[0], (err, row: any) => {
+      this.db.get(statsQuery, (err, row: any) => {
         if (err) {
           reject(err);
           return;
         }
 
-        this.db.all(queries[1], (err, categoryRows: any[]) => {
+        this.db.all(categoriesQuery, (err, categoryRows: any[]) => {
           if (err) {
             reject(err);
             return;
@@ -247,13 +186,7 @@ export class Database {
     });
   }
 
-  public close(): void {
-    this.db.close((err) => {
-      if (err) {
-        console.error("Error closing database:", err);
-      } else {
-        console.log("Database connection closed");
-      }
-    });
+  close(): void {
+    this.db.close();
   }
 }

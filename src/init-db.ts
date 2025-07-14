@@ -2,7 +2,6 @@ import { Database } from "./database";
 
 const db = new Database();
 
-// Sample data БЕЗ зображень
 const sampleProducts = [
   {
     name: "Смартфон Samsung Galaxy S24",
@@ -91,18 +90,14 @@ const sampleProducts = [
   },
 ];
 
-async function initializeDatabase() {
+async function initDatabase() {
   try {
-    console.log("🚀 Initializing database with sample data...");
-
-    // Спочатку ініціалізуємо таблиці
     await db.initTables();
 
-    // Перевіряємо, чи вже є товари в БД
     const existingProducts = await db.getAllProducts();
     if (existingProducts.length > 0) {
       console.log(
-        `⚠️  Database already contains ${existingProducts.length} products. Skipping initialization.`
+        `Database already contains ${existingProducts.length} products. Skipping initialization.`
       );
       console.log(
         "To reinitialize, delete the shop.db file and run this command again."
@@ -110,30 +105,22 @@ async function initializeDatabase() {
       return;
     }
 
-    // Додаємо товари
     for (const product of sampleProducts) {
       await db.createProduct(product);
-      console.log(`✅ Added product: ${product.name}`);
     }
 
-    console.log("\n🎉 Database initialized successfully!");
+    console.log("Database initialized successfully!");
 
-    // Відображаємо статистику
     const stats = await db.getProductStats();
-    console.log("\n📊 Database Stats:");
-    console.log(`📦 Total Products: ${stats.totalProducts}`);
-    console.log(`💰 Total Value: ${stats.totalValue.toFixed(2)} грн`);
-    console.log(`📊 Average Price: ${stats.averagePrice.toFixed(2)} грн`);
-    console.log(`📋 Total Stock: ${stats.totalStock}`);
-    console.log("\n🏷️ Categories:");
-    Object.entries(stats.categories).forEach(([category, count]) => {
-      console.log(`   ${category}: ${count} products`);
-    });
+    console.log(`Total Products: ${stats.totalProducts}`);
+    console.log(`Total Value: ${stats.totalValue.toFixed(2)} грн`);
+    console.log(`Average Price: ${stats.averagePrice.toFixed(2)} грн`);
+    console.log(`Total Stock: ${stats.totalStock}`);
   } catch (error) {
-    console.error("❌ Error initializing database:", error);
+    console.error("Error initializing database:", error);
   } finally {
     db.close();
   }
 }
 
-initializeDatabase();
+initDatabase();

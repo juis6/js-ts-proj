@@ -5,22 +5,8 @@ export interface Product {
   description: string;
   category: string;
   stock: number;
-  image_url?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-export interface ProductCreateRequest {
-  name: string;
-  price: number;
-  description: string;
-  category: string;
-  stock: number;
-  image_url?: string;
-}
-
-export interface ProductUpdateRequest extends Partial<ProductCreateRequest> {
-  id: number;
 }
 
 export interface ProductSearchQuery {

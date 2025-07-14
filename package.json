@@ -1,23 +1,13 @@
 {
-  "name": "internet-shop",
+  "name": "js-ts-proj",
   "version": "1.0.0",
-  "description": "Fullstack Internet Shop with TypeScript",
-  "main": "dist/server.js",
+  "description": "Simple Internet Shop",
   "scripts": {
     "build": "tsc",
     "dev": "concurrently \"tsc -w\" \"nodemon dist/server.js\"",
     "start": "node dist/server.js",
-    "init-db": "node dist/init-db.js"
+    "init": "node dist/init-db.js"
   },
-  "keywords": [
-    "nodejs",
-    "express",
-    "typescript",
-    "sqlite",
-    "shop"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "sqlite3": "^5.1.6",
